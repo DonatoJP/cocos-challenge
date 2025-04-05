@@ -1,0 +1,32 @@
+networks:
+  cocos-network:
+    driver: bridge
+
+services:
+  cocos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    ports:
+      - 3000:3000
+      - 9229:9229
+    volumes:
+      - ./src:/app/src
+      - ./.env:/app/.env
+    networks:
+      - cocos-network
+  cocos-db:
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    volumes:
+      - postgresdb:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_PASSWORD=cocosChallenge
+    networks:
+      - cocos-network
+
+volumes:
+  cocos-db:
+  postgresdb:
