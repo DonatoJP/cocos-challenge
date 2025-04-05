@@ -2,7 +2,7 @@ import { TOrderSide, TOrderStatus, TOrderType } from './orders.types';
 
 export interface IOrder {
   id?: string;
-  instrumentid?: string;
+  instrumentid?: number;
   userid?: string;
   size?: number;
   price?: number;
@@ -30,7 +30,7 @@ export class Order implements IOrder {
 
   constructor(
     public id?: string,
-    public instrumentid?: string,
+    public instrumentid?: number,
     public userid?: string,
     public size?: number,
     public price?: number,

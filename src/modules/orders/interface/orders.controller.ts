@@ -12,7 +12,6 @@ export class OrdersController {
 
   @Post()
   createOrder(@Body() order: CreateOrderDTO) {
-    throw new Error(`Not implemented ${JSON.stringify(order)}`);
-    //return this.ordersService.createOrder(order);
+    return this.ordersService.createOrder(order);
   }
 }

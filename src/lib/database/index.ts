@@ -20,5 +20,5 @@ export const LoadDatabaseModule = () =>
     inject: [ConfigService],
   });
 
-export const LoadDatabaseFeature = (schema: EntitySchema) =>
-  TypeOrmModule.forFeature([schema]);
+export const LoadDatabaseFeatures = (schemas: EntitySchema[]) =>
+  TypeOrmModule.forFeature(schemas);
