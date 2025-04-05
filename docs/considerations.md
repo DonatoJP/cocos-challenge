@@ -1,0 +1,1 @@
+- Los montos y cantidades (tanto de valores en pesos como en cantidad de acciones) pueden ser representados con numeros que no corren riesgo de tener problemas con representacion numerica. No sera necesario utilizar representaciones en String ni BigNumber para precios, cantidades y valores.
