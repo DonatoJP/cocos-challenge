@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { CreateOrderDTO } from './dto/createOrder.dto';
+import { Body, Controller, Get, Post, UsePipes } from '@nestjs/common';
+import { CreateOrderDTO, createOrderSchema } from './dto/createOrder.dto';
 import { OrdersService } from '../application/orders.service';
+import { ZodValidationPipe } from 'src/pipes/zodValidator.pipe';
 
 @Controller()
 export class OrdersController {
@@ -11,6 +12,7 @@ export class OrdersController {
   }
 
   @Post()
+  @UsePipes(new ZodValidationPipe(createOrderSchema))
   createOrder(@Body() order: CreateOrderDTO) {
     return this.ordersService.createOrder(order);
   }

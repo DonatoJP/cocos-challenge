@@ -34,7 +34,7 @@ export const OrderSchema = new EntitySchema<Order>({
     },
     datetime: {
       type: 'timestamp',
-      createDate: true,
+      default: () => 'CURRENT_TIMESTAMP',
     },
   },
 });

@@ -73,7 +73,7 @@ describe('Orders - Application', () => {
     describe('Limit Orders', () => {
       it('should create a limit order', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedIntrument.ticker,
           size: 10,
           price: 100,
@@ -91,7 +91,7 @@ describe('Orders - Application', () => {
 
       it('created limit order should have status NEW', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedIntrument.ticker,
           size: 10,
           price: 100,
@@ -108,7 +108,7 @@ describe('Orders - Application', () => {
 
       it('should map ticker to instrumentid', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedIntrument.ticker,
           size: 10,
           price: 100,
@@ -127,7 +127,7 @@ describe('Orders - Application', () => {
 
       it('should NOT create transfer order (cash in / out)', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedCash.ticker,
           size: 10,
           price: 100,
@@ -139,12 +139,26 @@ describe('Orders - Application', () => {
 
         expect(savedOrders.length).toBe(0);
       });
+
+      it('should set size if amount is defined', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedIntrument.ticker,
+          side: OrderSide.BUY,
+          type: OrderType.LIMIT,
+          price: 100,
+          amount: 120,
+        };
+
+        const order = await ordersService.createOrder(newOrder);
+        expect(order.size).toBe(1);
+      });
     });
 
     describe('Market Orders', () => {
       it('should create a market order', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedIntrument.ticker,
           size: 10,
           price: 100,
@@ -162,7 +176,7 @@ describe('Orders - Application', () => {
 
       it('created market order should have status FILLED', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedIntrument.ticker,
           size: 10,
           price: 100,
@@ -179,7 +193,7 @@ describe('Orders - Application', () => {
 
       it('should map ticker to instrumentid', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedIntrument.ticker,
           size: 10,
           price: 100,
@@ -198,7 +212,7 @@ describe('Orders - Application', () => {
 
       it('should create transfer order (cash in / out)', async () => {
         const newOrder = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: mockedCash.ticker,
           size: 10,
           price: 100,

@@ -1,3 +1,6 @@
 - Los montos y cantidades (tanto de valores en pesos como en cantidad de acciones) pueden ser representados con numeros que no corren riesgo de tener problemas con representacion numerica. No sera necesario utilizar representaciones en String ni BigNumber para precios, cantidades y valores.
 - Como entrada para crear las ordenes se utilizara el ticket de los instrumentos para identificarlos. El `userId` saldra de algun proceso de autenticación previo (no cubierto en esta solucion).
 - No existen las ordenes LIMIT que sean CASH_IN o CASH_OUT
+- Al momento de crear ordenes: 
+  - No pueden configurarse `amount` y `size` al mismo tiempo (mutuamente excluyentes)
+  - Al enviar `amount` (monto en pesos) se determinara `size` siempre como `floor(amount / price)`. Es decir, para la "compra" se compraran menos acciones de las que alcanzarian (no se pueden comprar fracciones de acciones), y para la "venta" se venderá lo máximo que se pueda antes de superar `amount` (no se pueden vender fracciones de acciones).

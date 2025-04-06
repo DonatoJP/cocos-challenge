@@ -3,7 +3,7 @@ import { TOrderSide, TOrderStatus, TOrderType } from './orders.types';
 export interface IOrder {
   id?: string;
   instrumentid?: number;
-  userid?: string;
+  userid?: number;
   size?: number;
   price?: number;
   type?: TOrderType;
@@ -31,12 +31,14 @@ export class Order implements IOrder {
   constructor(
     public id?: string,
     public instrumentid?: number,
-    public userid?: string,
+    public userid?: number,
     public size?: number,
     public price?: number,
     public type?: TOrderType,
     public side?: TOrderSide,
     public status?: TOrderStatus,
     public datetime?: Date,
-  ) {}
+  ) {
+    this.datetime = this.datetime || new Date();
+  }
 }

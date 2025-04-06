@@ -24,11 +24,4 @@ export const InstrumentSchema = new EntitySchema<Instrument>({
       length: 10,
     },
   },
-  relations: {
-    id: {
-      type: 'one-to-many',
-      target: 'MarketData',
-      inverseSide: 'instrumentid',
-    },
-  },
 });

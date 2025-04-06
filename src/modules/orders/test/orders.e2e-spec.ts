@@ -84,8 +84,9 @@ describe('OrdersModule E2E Testing', () => {
     describe('Limit Orders', () => {
       it('should create a buy limit order with size', async () => {
         const payload = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: 'DYCA',
+          price: 100,
           size: 10,
           side: OrderSide.BUY,
           type: OrderType.LIMIT,
@@ -106,8 +107,9 @@ describe('OrdersModule E2E Testing', () => {
 
       it('should create a sell limit order with size', async () => {
         const payload = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: 'DYCA',
+          price: 100,
           size: 10,
           side: OrderSide.SELL,
           type: OrderType.LIMIT,
@@ -125,13 +127,60 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
       });
+
+      it('should create a buy limit order with amount', async () => {
+        const payload = {
+          userid: 1,
+          instrumentTicker: 'DYCA',
+          price: 100,
+          amount: 120,
+          side: OrderSide.BUY,
+          type: OrderType.LIMIT,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].size).toBe(1);
+        expect(ordersSaved[0].side).toBe(payload.side);
+        expect(ordersSaved[0].type).toBe(payload.type);
+      });
+
+      it('should create a sell limit order with amount', async () => {
+        const payload = {
+          userid: 1,
+          instrumentTicker: 'DYCA',
+          price: 100,
+          amount: 120,
+          side: OrderSide.SELL,
+          type: OrderType.LIMIT,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].size).toBe(1);
+        expect(ordersSaved[0].side).toBe(payload.side);
+        expect(ordersSaved[0].type).toBe(payload.type);
+      });
     });
 
     describe('Market Orders', () => {
       it('should create a buy market order', async () => {
         const payload = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: 'DYCA',
+          price: 100,
           size: 10,
           side: OrderSide.BUY,
           type: OrderType.MARKET,
@@ -152,8 +201,9 @@ describe('OrdersModule E2E Testing', () => {
 
       it('should create a sell market order', async () => {
         const payload = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: 'DYCA',
+          price: 100,
           size: 10,
           side: OrderSide.SELL,
           type: OrderType.MARKET,
@@ -174,8 +224,9 @@ describe('OrdersModule E2E Testing', () => {
 
       it('should create a cash in market order', async () => {
         const payload = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: 'ARS',
+          price: 100,
           size: 10,
           side: OrderSide.CASH_IN,
           type: OrderType.MARKET,
@@ -196,8 +247,9 @@ describe('OrdersModule E2E Testing', () => {
 
       it('should create a cash out market order', async () => {
         const payload = {
-          userId: 1,
+          userid: 1,
           instrumentTicker: 'ARS',
+          price: 100,
           size: 10,
           side: OrderSide.CASH_OUT,
           type: OrderType.MARKET,
