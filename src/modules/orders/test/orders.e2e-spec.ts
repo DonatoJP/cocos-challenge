@@ -9,17 +9,30 @@ import { OrdersModule } from '../orders.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrderSide, OrderType } from '../domain/orders.constants';
 import { Instrument } from 'src/modules/market/domain/instruments.model';
+import { MarketData } from 'src/modules/market/domain/marketData.model';
 
 describe('OrdersModule E2E Testing', () => {
   let app: INestApplication<App>;
   let orderRepositoryMock: jest.Mocked<Partial<Repository<Order>>>;
   let instrumentRepositoryMock: jest.Mocked<Partial<Repository<Instrument>>>;
+  let marketRepositoryMock: jest.Mocked<Partial<Repository<MarketData>>>;
   let ordersSaved: Order[];
   const mockedInstrument = {
     id: 1,
     ticker: 'DYCA',
     name: 'Dycasa S.A.',
     type: 'ACCIONES',
+  };
+
+  const mockedMarketData = {
+    id: 1,
+    instrumentid: mockedInstrument.id,
+    high: 268.0,
+    low: 255.0,
+    open: 268.0,
+    close: 260.0,
+    previousclose: 264.0,
+    date: new Date(),
   };
 
   const _setUp = async () => {
@@ -36,23 +49,19 @@ describe('OrdersModule E2E Testing', () => {
       findOneBy: jest.fn().mockResolvedValue(mockedInstrument),
     };
 
+    marketRepositoryMock = {
+      findOne: jest.fn().mockResolvedValue(mockedMarketData),
+    };
+
     const module = await Test.createTestingModule({
       imports: [OrdersModule.withRouting()],
-      providers: [
-        {
-          provide: getRepositoryToken(Order),
-          useValue: orderRepositoryMock,
-        },
-        {
-          provide: getRepositoryToken(Instrument),
-          useValue: instrumentRepositoryMock,
-        },
-      ],
     })
       .overrideProvider(getRepositoryToken(Order))
       .useValue(orderRepositoryMock)
       .overrideProvider(getRepositoryToken(Instrument))
       .useValue(instrumentRepositoryMock)
+      .overrideProvider(getRepositoryToken(MarketData))
+      .useValue(marketRepositoryMock)
       .compile();
 
     app = module.createNestApplication();
@@ -180,7 +189,7 @@ describe('OrdersModule E2E Testing', () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'DYCA',
-          price: 100,
+          price: 100, // Should be ignored and latest market price should be used
           size: 10,
           side: OrderSide.BUY,
           type: OrderType.MARKET,
@@ -197,13 +206,14 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved[0].price).toBe(mockedMarketData.close);
       });
 
       it('should create a sell market order', async () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'DYCA',
-          price: 100,
+          price: 100, // Should be ignored and latest market price should be used
           size: 10,
           side: OrderSide.SELL,
           type: OrderType.MARKET,
@@ -220,14 +230,15 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved[0].price).toBe(mockedMarketData.close);
       });
 
       it('should create a cash in market order', async () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'ARS',
-          price: 100,
-          size: 10,
+          price: 100, // Price for cash in should be 1
+          size: 1000,
           side: OrderSide.CASH_IN,
           type: OrderType.MARKET,
         };
@@ -243,14 +254,15 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved[0].price).toBe(1);
       });
 
       it('should create a cash out market order', async () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'ARS',
-          price: 100,
-          size: 10,
+          price: 100, // Price for cash in should be 1
+          size: 1000,
           side: OrderSide.CASH_OUT,
           type: OrderType.MARKET,
         };
@@ -266,6 +278,7 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved[0].price).toBe(1);
       });
     });
   });

@@ -12,4 +12,13 @@ export class MarketDataRepository extends BaseRepository<MarketData> {
   ) {
     super(repository);
   }
+
+  async getLatestMarketData(instrumentid: number): Promise<MarketData | null> {
+    const marketData = await this.repository.findOne({
+      where: { instrumentid },
+      order: { date: 'DESC' },
+    });
+
+    return marketData;
+  }
 }

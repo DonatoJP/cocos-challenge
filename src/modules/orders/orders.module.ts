@@ -21,7 +21,7 @@ import { MARKET_ACCESS_PORT } from 'src/ports/market.port';
     LimitOrdersStrategy,
     {
       provide: MARKET_ACCESS_PORT,
-      useClass: MarketAdapter,
+      useExisting: MarketAdapter,
     },
   ],
 })

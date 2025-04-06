@@ -27,6 +27,17 @@ describe('Orders - Application', () => {
     type: 'MONEDA',
   };
 
+  const mockedMarketData = {
+    id: 1,
+    instrumentid: mockedIntrument.id,
+    high: 268.0,
+    low: 255.0,
+    open: 268.0,
+    close: 260.0,
+    previousclose: 264.0,
+    date: new Date(),
+  };
+
   beforeEach(async () => {
     savedOrders = [];
     ordersRepositoryMock = {
@@ -44,6 +55,7 @@ describe('Orders - Application', () => {
         }
         return Promise.resolve(mockedIntrument);
       }),
+      getLatestMarketPrice: jest.fn().mockResolvedValue(mockedMarketData.close),
     };
 
     module = await Test.createTestingModule({
@@ -174,7 +186,7 @@ describe('Orders - Application', () => {
         expect(savedOrder.type).toBe(OrderType.MARKET);
       });
 
-      it('created market order should have status FILLED', async () => {
+      it('should have status FILLED', async () => {
         const newOrder = {
           userid: 1,
           instrumentTicker: mockedIntrument.ticker,
@@ -228,6 +240,100 @@ describe('Orders - Application', () => {
         expect(savedOrder.instrumentid).toBe(mockedCash.id);
         expect(savedOrder.status).toBe(OrderStatus.FILLED);
         expect(savedOrder.side).toBe(OrderSide.CASH_IN);
+      });
+
+      it('should have price as latest market price', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedCash.ticker,
+          size: 100, // Buy 100 DYCA at market price
+          price: 100, // should be ignored and latest market price should be used
+          side: OrderSide.SELL,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(ordersRepositoryMock.create).toHaveBeenCalled();
+        expect(savedOrders.length).toBe(1);
+
+        const savedOrder = savedOrders[0];
+        expect(savedOrder.price).toBe(mockedMarketData.close);
+      });
+
+      it('should define size based on amount', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedCash.ticker,
+          amount: 300, // "Use 300 ARS to buy DYCA at market price"
+          price: 100, // should be ignored and latest market price should be used
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(ordersRepositoryMock.create).toHaveBeenCalled();
+        expect(savedOrders.length).toBe(1);
+
+        const savedOrder = savedOrders[0];
+        expect(savedOrder.size).toBe(
+          Math.floor(newOrder.amount / mockedMarketData.close),
+        );
+      });
+
+      it('should keep size', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedCash.ticker,
+          size: 100, // Buy 100 DYCA at market price
+          price: 100, // should be ignored and latest market price should be used
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(ordersRepositoryMock.create).toHaveBeenCalled();
+        expect(savedOrders.length).toBe(1);
+
+        const savedOrder = savedOrders[0];
+        expect(savedOrder.size).toBe(newOrder.size);
+      });
+
+      it('should prioritize size over amount', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedCash.ticker,
+          size: 100, // Buy 100 DYCA at market price
+          amount: 300, // "Use 300 ARS to buy DYCA at market price"
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(ordersRepositoryMock.create).toHaveBeenCalled();
+        expect(savedOrders.length).toBe(1);
+
+        const savedOrder = savedOrders[0];
+        expect(savedOrder.price).toBe(mockedMarketData.close);
+        expect(savedOrder.size).toBe(newOrder.size);
+      });
+
+      it('should set price 1 for cash in / out orders', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedCash.ticker,
+          size: 1000000, // Transfers 1000000 ARS
+          amount: 300, // Should be ignored
+          side: OrderSide.CASH_IN,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(ordersRepositoryMock.create).toHaveBeenCalled();
+        expect(savedOrders.length).toBe(1);
+
+        const savedOrder = savedOrders[0];
+        expect(savedOrder.price).toBe(1);
+        expect(savedOrder.size).toBe(newOrder.size);
       });
     });
   });

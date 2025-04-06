@@ -8,7 +8,7 @@ export interface INewOrder {
   userid: number;
   instrumentTicker: string;
   instrumentid?: number;
-  price: number;
+  price?: number;
   size?: number;
   amount?: number;
   side: TOrderSide;

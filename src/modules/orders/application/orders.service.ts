@@ -4,7 +4,6 @@ import { IOrderStrategy } from './strategies/order.strategy';
 import { OrdersRepository } from '../infrastructure/orders.repository';
 import { Order } from '../domain/orders.model';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
-import { defineNewOrderSize } from './helpers';
 
 @Injectable()
 export class OrdersService {
@@ -40,7 +39,6 @@ export class OrdersService {
     return strategy.createOrder({
       ...newOrder,
       instrumentid: instrument?.id,
-      size: defineNewOrderSize(newOrder),
     });
   }
 }

@@ -9,6 +9,7 @@ import {
 import { OrdersService } from '../orders.service';
 import { OrdersRepository } from '../../infrastructure/orders.repository';
 import { INewOrder } from '../../domain/orders.types';
+import { defineNewOrderSize } from '../helpers';
 
 @Injectable()
 export class LimitOrdersStrategy implements IOrderStrategy, OnModuleInit {
@@ -32,6 +33,7 @@ export class LimitOrdersStrategy implements IOrderStrategy, OnModuleInit {
       ...newOrder,
       type: OrderType.LIMIT,
       status: OrderStatus.NEW,
+      size: defineNewOrderSize(newOrder),
     });
 
     return this.ordersRepository.create(order);
