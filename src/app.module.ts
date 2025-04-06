@@ -3,6 +3,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { LoadConfigModule } from './lib/config';
 import { LoadDatabaseModule } from './lib/database';
 import { MarketModule } from './modules/market/market.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { MarketModule } from './modules/market/market.module';
     LoadDatabaseModule(),
     OrdersModule.withRouting(),
     MarketModule,
+    UsersModule.withRouting(),
   ],
   controllers: [],
   providers: [],

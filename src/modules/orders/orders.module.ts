@@ -10,6 +10,7 @@ import { OrdersRepository } from './infrastructure/orders.repository';
 import { MarketModule } from '../market/market.module';
 import { MarketAdapter } from '../market/interface/adapters/market.adapter';
 import { MARKET_ACCESS_PORT } from 'src/ports/market.port';
+import { OrdersAdapter } from './interface/adapters/orders.adapter';
 
 @Module({
   imports: [LoadDatabaseFeatures([OrderSchema]), MarketModule],
@@ -23,7 +24,9 @@ import { MARKET_ACCESS_PORT } from 'src/ports/market.port';
       provide: MARKET_ACCESS_PORT,
       useExisting: MarketAdapter,
     },
+    OrdersAdapter,
   ],
+  exports: [OrdersAdapter],
 })
 export class OrdersModule {
   static withRouting(): DynamicModule {

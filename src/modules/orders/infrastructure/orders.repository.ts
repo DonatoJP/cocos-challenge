@@ -12,4 +12,12 @@ export class OrdersRepository extends BaseRepository<Order> {
   ) {
     super(repository);
   }
+
+  async getUserOrders(userid: number) {
+    return this.getBy('userid', userid, {
+      order: {
+        datetime: 'DESC',
+      },
+    });
+  }
 }

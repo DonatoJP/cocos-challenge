@@ -21,7 +21,7 @@ export const OrderSchema = new EntitySchema<Order>({
       type: 'integer',
     },
     price: {
-      type: 'float',
+      type: 'numeric',
     },
     type: {
       type: 'varchar',
@@ -35,6 +35,18 @@ export const OrderSchema = new EntitySchema<Order>({
     datetime: {
       type: 'timestamp',
       default: () => 'CURRENT_TIMESTAMP',
+    },
+  },
+  relations: {
+    user: {
+      type: 'many-to-one',
+      target: 'User',
+      inverseSide: 'orders',
+      joinColumn: {
+        name: 'userid',
+      },
+      nullable: true,
+      onDelete: 'SET NULL',
     },
   },
 });

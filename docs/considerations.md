@@ -4,3 +4,8 @@
 - Al momento de crear ordenes: 
   - No pueden configurarse `amount` y `size` al mismo tiempo (mutuamente excluyentes)
   - Al enviar `amount` (monto en pesos) se determinara `size` siempre como `floor(amount / price)`. Es decir, para la "compra" se compraran menos acciones de las que alcanzarian (no se pueden comprar fracciones de acciones), y para la "venta" se venderá lo máximo que se pueda antes de superar `amount` (no se pueden vender fracciones de acciones).
+- Al momento de calcular el portfolio:
+  - Las ordenes CASH_IN y CASH_OUT solo afectan al balance en pesos disponible a utilizar
+  - Las ordenes de tipo LIMIT en estado NEW solo afectan al balance en pesos disponible a utilizar. Al no estar ejecutadas y el usuario no disponer de esas acciones aun en su cartera, no se calculara ni el valor monetario de la posicion ni el rendimiento total
+  - Las ordenes de tipo MARKET en estado FILLED afectaran al valor monetario de la posicion y al rendimiento total de la cartera del usuario
+  - Disclaimer: en la base de datos provista, el usuario 1 tiene una orden LIMIT BUY NEW de 60 `BMA` (aun pendiente), una LIMIT BUY FILLED de 20 `BMA` y otra MARKET SELL FILLED de 30 `BMA`. Dado esto, el balance final de este activo es de -10 `BMA`.

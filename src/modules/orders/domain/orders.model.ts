@@ -1,6 +1,6 @@
 import { TOrderSide, TOrderStatus, TOrderType } from './orders.types';
 
-export interface IOrder {
+export interface IOrder<U = any> {
   id?: string;
   instrumentid?: number;
   userid?: number;
@@ -10,9 +10,11 @@ export interface IOrder {
   side?: TOrderSide;
   status?: TOrderStatus;
   datetime?: Date;
+  user?: U;
 }
 
 export class Order implements IOrder {
+  public user?: any;
   static from(orderData: IOrder): Order {
     const order = new Order(
       orderData.id,
@@ -25,6 +27,8 @@ export class Order implements IOrder {
       orderData.status,
       orderData.datetime,
     );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    if (orderData.user) order.user = orderData.user;
     return order;
   }
 
