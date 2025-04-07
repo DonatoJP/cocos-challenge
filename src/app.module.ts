@@ -10,7 +10,7 @@ import { UsersModule } from './modules/users/users.module';
     LoadConfigModule(),
     LoadDatabaseModule(),
     OrdersModule.withRouting(),
-    MarketModule,
+    MarketModule.withRouting(),
     UsersModule.withRouting(),
   ],
   controllers: [],
