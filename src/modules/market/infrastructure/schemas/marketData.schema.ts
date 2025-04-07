@@ -26,7 +26,7 @@ export const MarketDataSchema = new EntitySchema<MarketData>({
     close: {
       type: 'float',
     },
-    previousClose: {
+    previousclose: {
       type: 'float',
     },
     date: {
@@ -35,9 +35,15 @@ export const MarketDataSchema = new EntitySchema<MarketData>({
     },
   },
   relations: {
-    instrumentid: {
+    instrument: {
       type: 'many-to-one',
       target: 'Instrument',
+      inverseSide: 'marketdatas',
+      joinColumn: {
+        name: 'instrumentid',
+      },
+      nullable: true,
+      onDelete: 'SET NULL',
     },
   },
 });

@@ -1,15 +1,17 @@
-export interface IMarketData {
+export interface IMarketData<I = any> {
   id?: number;
   instrumentid?: number;
   high?: number;
   low?: number;
   open?: number;
   close?: number;
-  previousClose?: number;
+  previousclose?: number;
   date?: Date;
+  instrument?: I;
 }
 
 export class MarketData implements IMarketData {
+  public instrument?: any;
   constructor(
     public id?: number,
     public instrumentid?: number,
@@ -17,7 +19,7 @@ export class MarketData implements IMarketData {
     public low?: number,
     public open?: number,
     public close?: number,
-    public previousClose?: number,
+    public previousclose?: number,
     public date?: Date,
   ) {}
 
@@ -29,9 +31,12 @@ export class MarketData implements IMarketData {
       data.low,
       data.open,
       data.close,
-      data.previousClose,
+      data.previousclose,
       data.date,
     );
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    if (data.instrument) marketData.instrument = data.instrument;
 
     return marketData;
   }

@@ -8,6 +8,8 @@ export class OrdersAdapter implements OrdersAccessPort {
   constructor(private readonly ordersService: OrdersService) {}
 
   async calculateAssetPortfolioForUser(userId: number): Promise<IPortfolio> {
-    return this.ordersService.calculateAssetPortfolioForUser(userId);
+    return this.ordersService.calculateAssetPortfolioForUser(userId, {
+      includePnl: true,
+    });
   }
 }
