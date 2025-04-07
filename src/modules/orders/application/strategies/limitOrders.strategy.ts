@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { IOrder, Order } from '../../domain/orders.model';
-import { IOrderStrategy } from './order.strategy';
+import { OrderStrategy } from './order.strategy';
 import {
   OrderSide,
   OrderStatus,
@@ -10,19 +10,25 @@ import { OrdersService } from '../orders.service';
 import { OrdersRepository } from '../../infrastructure/orders.repository';
 import { INewOrder, TOrderSide, TOrderStatus } from '../../domain/orders.types';
 import { defineNewOrderSize } from '../helpers';
-import { IPortfolioImpact } from '../../domain/portfolio.model';
+import { IPortfolio, IPortfolioImpact } from '../../domain/portfolio.model';
 
 @Injectable()
-export class LimitOrdersStrategy implements IOrderStrategy, OnModuleInit {
+export class LimitOrdersStrategy extends OrderStrategy implements OnModuleInit {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly ordersRepository: OrdersRepository,
-  ) {}
+  ) {
+    super();
+  }
 
   onModuleInit() {
     this.ordersService.registerStrategy(OrderType.LIMIT, this);
   }
-  async createOrder(newOrder: INewOrder): Promise<Order> {
+
+  async createOrder(
+    newOrder: INewOrder,
+    portfolio: IPortfolio,
+  ): Promise<Order> {
     if (
       newOrder.side === OrderSide.CASH_IN ||
       newOrder.side === OrderSide.CASH_OUT
@@ -33,10 +39,14 @@ export class LimitOrdersStrategy implements IOrderStrategy, OnModuleInit {
     const order = Order.from({
       ...newOrder,
       type: OrderType.LIMIT,
-      status: OrderStatus.NEW,
       size: defineNewOrderSize(newOrder),
     });
 
+    order.status = this._determineOrderStatus(
+      order,
+      portfolio,
+      OrderStatus.NEW,
+    );
     return this.ordersRepository.create(order);
   }
 

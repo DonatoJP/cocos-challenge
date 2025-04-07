@@ -4,10 +4,10 @@ import * as request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { App } from 'supertest/types';
 import { Order } from '../domain/orders.model';
-import { Repository } from 'typeorm';
+import { FindManyOptions, Repository } from 'typeorm';
 import { OrdersModule } from '../orders.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { OrderSide, OrderType } from '../domain/orders.constants';
+import { OrderSide, OrderStatus, OrderType } from '../domain/orders.constants';
 import { Instrument } from 'src/modules/market/domain/instruments.model';
 import { MarketData } from 'src/modules/market/domain/marketData.model';
 
@@ -24,6 +24,13 @@ describe('OrdersModule E2E Testing', () => {
     type: 'ACCIONES',
   };
 
+  const mockedCash = {
+    id: 66,
+    ticker: 'ARS',
+    name: 'PESOS',
+    type: 'MONEDA',
+  };
+
   const mockedMarketData = {
     id: 1,
     instrumentid: mockedInstrument.id,
@@ -38,7 +45,50 @@ describe('OrdersModule E2E Testing', () => {
   const _setUp = async () => {
     ordersSaved = [];
     orderRepositoryMock = {
-      find: jest.fn(() => Promise.resolve([])),
+      find: jest.fn().mockImplementation((params: FindManyOptions<Order>) => {
+        if (params.where?.['userid']) {
+          const userid = params.where?.['userid'] as number;
+          const ordersByUser = {
+            1: [
+              Order.from({
+                userid,
+                instrumentid: mockedCash.id,
+                size: 100000000,
+                price: 1,
+                type: OrderType.MARKET,
+                side: OrderSide.CASH_IN,
+                status: OrderStatus.FILLED,
+                datetime: new Date(),
+              }),
+              Order.from({
+                userid,
+                instrumentid: mockedInstrument.id,
+                size: 10,
+                price: 10,
+                type: OrderType.MARKET,
+                side: OrderSide.BUY,
+                status: OrderStatus.FILLED,
+                datetime: new Date(),
+              }),
+            ],
+            2: [
+              Order.from({
+                userid,
+                instrumentid: mockedCash.id,
+                size: 10000,
+                price: 1,
+                type: OrderType.MARKET,
+                side: OrderSide.CASH_IN,
+                status: OrderStatus.FILLED,
+                datetime: new Date(),
+              }),
+            ],
+          };
+
+          return Promise.resolve(ordersByUser[userid] || []);
+        }
+        return Promise.resolve([]);
+      }),
       save: jest.fn().mockImplementation((entity: Order) => {
         ordersSaved.push(entity);
         return Promise.resolve(Order.from(entity));
@@ -46,7 +96,8 @@ describe('OrdersModule E2E Testing', () => {
     };
 
     instrumentRepositoryMock = {
-      findOneBy: jest.fn().mockResolvedValue(mockedInstrument),
+      find: jest.fn().mockResolvedValue(mockedInstrument),
+      findOne: jest.fn().mockResolvedValue(mockedInstrument),
     };
 
     marketRepositoryMock = {
@@ -109,6 +160,7 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
@@ -132,6 +184,7 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
@@ -155,6 +208,7 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
         expect(ordersSaved[0].size).toBe(1);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
@@ -178,7 +232,32 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
         expect(ordersSaved[0].size).toBe(1);
+        expect(ordersSaved[0].side).toBe(payload.side);
+        expect(ordersSaved[0].type).toBe(payload.type);
+      });
+
+      it('should create a rejected order', async () => {
+        const payload = {
+          userid: 2,
+          instrumentTicker: 'DYCA',
+          price: 100,
+          size: 12000,
+          side: OrderSide.BUY,
+          type: OrderType.LIMIT,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.REJECTED);
+        expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
       });
@@ -203,6 +282,7 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
@@ -227,6 +307,7 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
@@ -251,6 +332,7 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
@@ -275,10 +357,36 @@ describe('OrdersModule E2E Testing', () => {
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
         expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
         expect(ordersSaved[0].size).toBe(payload.size);
         expect(ordersSaved[0].side).toBe(payload.side);
         expect(ordersSaved[0].type).toBe(payload.type);
         expect(ordersSaved[0].price).toBe(1);
+      });
+
+      it('should create a rejected order', async () => {
+        const payload = {
+          userid: 2,
+          instrumentTicker: mockedInstrument.ticker,
+          price: 100,
+          size: 1000,
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(1);
+        expect(ordersSaved[0].status).toBe(OrderStatus.REJECTED);
+        expect(ordersSaved[0].size).toBe(payload.size);
+        expect(ordersSaved[0].side).toBe(payload.side);
+        expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved[0].price).toBe(260.0);
       });
     });
   });

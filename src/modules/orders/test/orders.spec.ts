@@ -46,6 +46,37 @@ describe('Orders - Application', () => {
         savedOrders.push(savedOrder);
         return Promise.resolve(savedOrder);
       }),
+      getUserOrders: jest.fn().mockImplementation((userid: number) => {
+        const ordersByUser = {
+          1: [
+            {
+              userid,
+              instrumentid: mockedCash.id,
+              size: 100000000,
+              price: 1,
+              type: OrderType.MARKET,
+              side: OrderSide.CASH_IN,
+              status: OrderStatus.FILLED,
+              datetime: new Date(),
+            },
+          ],
+          2: [
+            {
+              userid,
+              instrumentid: mockedCash.id,
+              size: 10000,
+              price: 1,
+              type: OrderType.MARKET,
+              side: OrderSide.CASH_IN,
+              status: OrderStatus.FILLED,
+              datetime: new Date(),
+            },
+          ],
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return ordersByUser[userid] || [];
+      }),
     };
 
     marketPortMock = {
@@ -164,6 +195,34 @@ describe('Orders - Application', () => {
 
         const order = await ordersService.createOrder(newOrder);
         expect(order.size).toBe(1);
+      });
+
+      it('should reject order if user does not have enough fiat balance', async () => {
+        const newOrder = {
+          userid: 2,
+          instrumentTicker: mockedIntrument.ticker,
+          side: OrderSide.BUY,
+          type: OrderType.LIMIT,
+          price: 100,
+          size: 1000,
+        };
+
+        const order = await ordersService.createOrder(newOrder);
+        expect(order.status).toBe(OrderStatus.REJECTED);
+      });
+
+      it('should reject order if user does not have enough asset balance', async () => {
+        const newOrder = {
+          userid: 2,
+          instrumentTicker: mockedIntrument.ticker,
+          side: OrderSide.SELL,
+          type: OrderType.LIMIT,
+          price: 100,
+          size: 1000,
+        };
+
+        const order = await ordersService.createOrder(newOrder);
+        expect(order.status).toBe(OrderStatus.REJECTED);
       });
     });
 
@@ -334,6 +393,34 @@ describe('Orders - Application', () => {
         const savedOrder = savedOrders[0];
         expect(savedOrder.price).toBe(1);
         expect(savedOrder.size).toBe(newOrder.size);
+      });
+
+      it('should reject order if user does not have enough fiat balance', async () => {
+        const newOrder = {
+          userid: 2,
+          instrumentTicker: mockedIntrument.ticker,
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+          price: 100,
+          size: 1000,
+        };
+
+        const order = await ordersService.createOrder(newOrder);
+        expect(order.status).toBe(OrderStatus.REJECTED);
+      });
+
+      it('should reject order if user does not have enough asset balance', async () => {
+        const newOrder = {
+          userid: 2,
+          instrumentTicker: mockedIntrument.ticker,
+          side: OrderSide.SELL,
+          type: OrderType.MARKET,
+          price: 100,
+          size: 1000,
+        };
+
+        const order = await ordersService.createOrder(newOrder);
+        expect(order.status).toBe(OrderStatus.REJECTED);
       });
     });
   });

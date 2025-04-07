@@ -4,7 +4,7 @@ import { IOrderStrategy } from './strategies/order.strategy';
 import { OrdersRepository } from '../infrastructure/orders.repository';
 import { IOrder, Order } from '../domain/orders.model';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
-import { IPortfolioImpact } from '../domain/portfolio.model';
+import { IPortfolio, IPortfolioImpact } from '../domain/portfolio.model';
 
 @Injectable()
 export class OrdersService {
@@ -33,17 +33,53 @@ export class OrdersService {
       throw new Error(`Strategy for order type ${newOrder.type} not found`);
     }
 
-    const instrument = await this.marketPort.getInstrumentByTicker(
-      newOrder.instrumentTicker,
-    );
+    const [instrument, portfolio] = await Promise.all([
+      this.marketPort.getInstrumentByTicker(newOrder.instrumentTicker),
+      this.calculateAssetPortfolioForUser(newOrder.userid),
+    ]);
 
-    return strategy.createOrder({
-      ...newOrder,
-      instrumentid: instrument?.id,
-    });
+    return strategy.createOrder(
+      {
+        ...newOrder,
+        instrumentid: instrument?.id,
+      },
+      portfolio,
+    );
   }
 
-  getOrderPortfolioImpact(order: IOrder): IPortfolioImpact {
+  async calculateAssetPortfolioForUser(userId: number): Promise<IPortfolio> {
+    const orders = await this.ordersRepository.getUserOrders(userId);
+
+    const porfolioImpacts = orders.map((order) => ({
+      ...order,
+      portfolioImpact: this.getOrderPortfolioImpact(order),
+    }));
+
+    let available = 0;
+    const assets = {};
+
+    porfolioImpacts.forEach((order) => {
+      if (order.portfolioImpact) {
+        available += order.portfolioImpact.fiat;
+        if (order.instrumentid && !(order.instrumentid in assets)) {
+          assets[order.instrumentid] = 0;
+        }
+
+        assets[order.instrumentid!] += order.portfolioImpact.asset;
+      }
+    });
+
+    return {
+      userid: userId,
+      available,
+      assets: Object.entries(assets).map(([instrumentid, size]) => ({
+        instrumentid: Number(instrumentid),
+        size: Number(size),
+      })),
+    };
+  }
+
+  private getOrderPortfolioImpact(order: IOrder): IPortfolioImpact {
     const strategy = this.ordersStrategies.get(order.type as TOrderType);
     if (!strategy) {
       throw new Error(`Strategy for order type ${order.type} not found`);
