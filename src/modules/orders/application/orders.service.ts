@@ -5,6 +5,8 @@ import { OrdersRepository } from '../infrastructure/orders.repository';
 import { IOrder, Order } from '../domain/orders.model';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
 import { IPortfolio, IPortfolioImpact } from '../domain/portfolio.model';
+import { OrderStatus } from '../domain/orders.constants';
+import { OrderNotFound } from '../domain/orders.errors';
 
 @Injectable()
 export class OrdersService {
@@ -47,6 +49,16 @@ export class OrdersService {
     );
   }
 
+  async cancelOrder(orderId: number): Promise<Order> {
+    const order = await this.ordersRepository.getById(orderId);
+    if (order?.status !== OrderStatus.NEW) throw new OrderNotFound();
+
+    return this.ordersRepository.updateById(orderId, {
+      status: OrderStatus.CANCELLED,
+    }) as Order;
+  }
+
+  // TODO: Migrate to a PortfolioService
   async calculateAssetPortfolioForUser(userId: number): Promise<IPortfolio> {
     const orders = await this.ordersRepository.getUserOrders(userId);
 

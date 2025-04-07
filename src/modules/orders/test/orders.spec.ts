@@ -3,7 +3,7 @@ import { OrdersService } from '../application/orders.service';
 import { LimitOrdersStrategy } from '../application/strategies/limitOrders.strategy';
 import { MarketOrdersStrategy } from '../application/strategies/marketOrders.strategy';
 import { OrdersRepository } from '../infrastructure/orders.repository';
-import { Order } from '../domain/orders.model';
+import { IOrder, Order } from '../domain/orders.model';
 import { OrderStatus, OrderType } from '../domain/orders.constants';
 import { OrderSide } from '../domain/orders.constants';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
@@ -14,6 +14,7 @@ describe('Orders - Application', () => {
   let ordersRepositoryMock: jest.Mocked<Partial<OrdersRepository>>;
   let marketPortMock: jest.Mocked<Partial<MarketAccessPort>>;
   let savedOrders: Order[];
+  let initialOrdersCount: number;
   const mockedIntrument = {
     id: 1,
     ticker: 'DYCA',
@@ -39,7 +40,20 @@ describe('Orders - Application', () => {
   };
 
   beforeEach(async () => {
-    savedOrders = [];
+    savedOrders = [
+      Order.from({
+        id: 1,
+        instrumentid: mockedIntrument.id,
+        userid: 1,
+        size: 100,
+        price: 100,
+        type: OrderType.LIMIT,
+        side: OrderSide.BUY,
+        status: OrderStatus.NEW,
+        datetime: new Date(),
+      }),
+    ];
+    initialOrdersCount = savedOrders.length;
     ordersRepositoryMock = {
       create: jest.fn().mockImplementation((order: Order) => {
         const savedOrder = Order.from(order);
@@ -76,6 +90,14 @@ describe('Orders - Application', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return ordersByUser[userid] || [];
+      }),
+      getById: jest.fn().mockImplementation((id: number) => {
+        return Promise.resolve(savedOrders.find((order) => order.id === id));
+      }),
+      updateById: jest.fn().mockImplementation((id: number, update: IOrder) => {
+        const order = savedOrders.find((order) => order.id === id);
+        if (!order) return Promise.resolve(undefined);
+        return Promise.resolve({ ...order, id, ...update });
       }),
     };
 
@@ -126,9 +148,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.type).toBe(OrderType.LIMIT);
       });
 
@@ -143,9 +165,9 @@ describe('Orders - Application', () => {
         };
 
         await ordersService.createOrder(newOrder);
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.status).toBe(OrderStatus.NEW);
       });
 
@@ -160,11 +182,11 @@ describe('Orders - Application', () => {
         };
 
         await ordersService.createOrder(newOrder);
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
         expect(marketPortMock.getInstrumentByTicker).toHaveBeenCalledWith(
           mockedIntrument.ticker,
         );
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.instrumentid).toBe(mockedIntrument.id);
       });
 
@@ -180,7 +202,7 @@ describe('Orders - Application', () => {
 
         await expect(ordersService.createOrder(newOrder)).rejects.toThrow();
 
-        expect(savedOrders.length).toBe(0);
+        expect(savedOrders.length).toBe(initialOrdersCount);
       });
 
       it('should set size if amount is defined', async () => {
@@ -239,9 +261,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.type).toBe(OrderType.MARKET);
       });
 
@@ -256,9 +278,9 @@ describe('Orders - Application', () => {
         };
 
         await ordersService.createOrder(newOrder);
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.status).toBe(OrderStatus.FILLED);
       });
 
@@ -273,11 +295,11 @@ describe('Orders - Application', () => {
         };
 
         await ordersService.createOrder(newOrder);
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
         expect(marketPortMock.getInstrumentByTicker).toHaveBeenCalledWith(
           mockedIntrument.ticker,
         );
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.instrumentid).toBe(mockedIntrument.id);
       });
 
@@ -293,9 +315,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.instrumentid).toBe(mockedCash.id);
         expect(savedOrder.status).toBe(OrderStatus.FILLED);
         expect(savedOrder.side).toBe(OrderSide.CASH_IN);
@@ -313,9 +335,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.price).toBe(mockedMarketData.close);
       });
 
@@ -331,9 +353,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.size).toBe(
           Math.floor(newOrder.amount / mockedMarketData.close),
         );
@@ -351,9 +373,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.size).toBe(newOrder.size);
       });
 
@@ -369,9 +391,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.price).toBe(mockedMarketData.close);
         expect(savedOrder.size).toBe(newOrder.size);
       });
@@ -388,9 +410,9 @@ describe('Orders - Application', () => {
 
         await ordersService.createOrder(newOrder);
         expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(1);
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
 
-        const savedOrder = savedOrders[0];
+        const savedOrder = savedOrders[initialOrdersCount];
         expect(savedOrder.price).toBe(1);
         expect(savedOrder.size).toBe(newOrder.size);
       });
@@ -421,6 +443,14 @@ describe('Orders - Application', () => {
 
         const order = await ordersService.createOrder(newOrder);
         expect(order.status).toBe(OrderStatus.REJECTED);
+      });
+    });
+
+    describe('Cancel Orders', () => {
+      it('should cancel order', async () => {
+        const order = await ordersService.cancelOrder(1);
+        expect(ordersRepositoryMock.updateById).toHaveBeenCalled();
+        expect(order.status).toBe(OrderStatus.CANCELLED);
       });
     });
   });

@@ -50,4 +50,11 @@ export abstract class BaseRepository<T extends ObjectLiteral> {
       order,
     } as FindOneOptions<T>);
   }
+
+  async updateById<I extends T['id']>(
+    id: I,
+    update: T,
+  ): Promise<T | undefined> {
+    return this.repository.save({ id, ...update });
+  }
 }

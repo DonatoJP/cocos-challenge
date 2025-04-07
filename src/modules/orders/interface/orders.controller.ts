@@ -1,7 +1,19 @@
-import { Body, Controller, Get, Post, UsePipes } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Res,
+  UsePipes,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CreateOrderDTO, createOrderSchema } from './dto/createOrder.dto';
 import { OrdersService } from '../application/orders.service';
 import { ZodValidationPipe } from 'src/pipes/zodValidator.pipe';
+import { Response } from 'express';
+import { OrderNotFound } from '../domain/orders.errors';
 
 @Controller()
 export class OrdersController {
@@ -15,5 +27,20 @@ export class OrdersController {
   @UsePipes(new ZodValidationPipe(createOrderSchema))
   createOrder(@Body() order: CreateOrderDTO) {
     return this.ordersService.createOrder(order);
+  }
+
+  @Post('/:id/cancel')
+  @HttpCode(200)
+  async cancelOrder(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.ordersService.cancelOrder(+id);
+      return res.status(200).json(result);
+    } catch (e) {
+      if (e instanceof OrderNotFound) {
+        return res.status(400).json({ message: e.message });
+      }
+
+      return new InternalServerErrorException();
+    }
   }
 }

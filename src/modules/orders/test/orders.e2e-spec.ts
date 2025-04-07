@@ -4,7 +4,7 @@ import * as request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { App } from 'supertest/types';
 import { Order } from '../domain/orders.model';
-import { FindManyOptions, Repository } from 'typeorm';
+import { FindManyOptions, FindOneOptions, Repository } from 'typeorm';
 import { OrdersModule } from '../orders.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrderSide, OrderStatus, OrderType } from '../domain/orders.constants';
@@ -17,6 +17,7 @@ describe('OrdersModule E2E Testing', () => {
   let instrumentRepositoryMock: jest.Mocked<Partial<Repository<Instrument>>>;
   let marketRepositoryMock: jest.Mocked<Partial<Repository<MarketData>>>;
   let ordersSaved: Order[];
+  let initialOrdersCount: number;
   const mockedInstrument = {
     id: 1,
     ticker: 'DYCA',
@@ -43,51 +44,82 @@ describe('OrdersModule E2E Testing', () => {
   };
 
   const _setUp = async () => {
-    ordersSaved = [];
+    ordersSaved = [
+      Order.from({
+        id: 10,
+        userid: 1,
+        instrumentid: mockedCash.id,
+        size: 100000000,
+        price: 1,
+        type: OrderType.MARKET,
+        side: OrderSide.CASH_IN,
+        status: OrderStatus.FILLED,
+        datetime: new Date(),
+      }),
+      Order.from({
+        id: 11,
+        userid: 1,
+        instrumentid: mockedInstrument.id,
+        size: 10,
+        price: 10,
+        type: OrderType.MARKET,
+        side: OrderSide.BUY,
+        status: OrderStatus.FILLED,
+        datetime: new Date(),
+      }),
+      Order.from({
+        id: 20,
+        userid: 2,
+        instrumentid: mockedCash.id,
+        size: 10000,
+        price: 1,
+        type: OrderType.MARKET,
+        side: OrderSide.CASH_IN,
+        status: OrderStatus.FILLED,
+        datetime: new Date(),
+      }),
+      Order.from({
+        id: 31,
+        userid: 3,
+        instrumentid: mockedInstrument.id,
+        size: 100,
+        price: 100,
+        type: OrderType.LIMIT,
+        side: OrderSide.BUY,
+        status: OrderStatus.NEW,
+        datetime: new Date(),
+      }),
+      Order.from({
+        id: 32,
+        userid: 3,
+        instrumentid: mockedInstrument.id,
+        size: 100,
+        price: 100,
+        type: OrderType.LIMIT,
+        side: OrderSide.SELL,
+        status: OrderStatus.FILLED,
+        datetime: new Date(),
+      }),
+    ];
+    initialOrdersCount = ordersSaved.length;
     orderRepositoryMock = {
       find: jest.fn().mockImplementation((params: FindManyOptions<Order>) => {
         if (params.where?.['userid']) {
           const userid = params.where?.['userid'] as number;
-          const ordersByUser = {
-            1: [
-              Order.from({
-                userid,
-                instrumentid: mockedCash.id,
-                size: 100000000,
-                price: 1,
-                type: OrderType.MARKET,
-                side: OrderSide.CASH_IN,
-                status: OrderStatus.FILLED,
-                datetime: new Date(),
-              }),
-              Order.from({
-                userid,
-                instrumentid: mockedInstrument.id,
-                size: 10,
-                price: 10,
-                type: OrderType.MARKET,
-                side: OrderSide.BUY,
-                status: OrderStatus.FILLED,
-                datetime: new Date(),
-              }),
-            ],
-            2: [
-              Order.from({
-                userid,
-                instrumentid: mockedCash.id,
-                size: 10000,
-                price: 1,
-                type: OrderType.MARKET,
-                side: OrderSide.CASH_IN,
-                status: OrderStatus.FILLED,
-                datetime: new Date(),
-              }),
-            ],
-          };
 
-          return Promise.resolve(ordersByUser[userid] || []);
+          return Promise.resolve(
+            ordersSaved.filter((o) => o.userid === userid),
+          );
         }
         return Promise.resolve([]);
+      }),
+      findOne: jest.fn().mockImplementation((params: FindOneOptions<Order>) => {
+        if (params.where?.['id']) {
+          const id = params.where?.['id'] as number;
+
+          return Promise.resolve(ordersSaved.find((o) => o.id === id));
+        }
+        return Promise.resolve(null);
       }),
       save: jest.fn().mockImplementation((entity: Order) => {
         ordersSaved.push(entity);
@@ -159,11 +191,11 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.NEW);
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
       });
 
       it('should create a sell limit order with size', async () => {
@@ -183,11 +215,11 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.NEW);
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
       });
 
       it('should create a buy limit order with amount', async () => {
@@ -207,11 +239,11 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
-        expect(ordersSaved[0].size).toBe(1);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.NEW);
+        expect(ordersSaved[initialOrdersCount].size).toBe(1);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
       });
 
       it('should create a sell limit order with amount', async () => {
@@ -231,11 +263,11 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.NEW);
-        expect(ordersSaved[0].size).toBe(1);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.NEW);
+        expect(ordersSaved[initialOrdersCount].size).toBe(1);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
       });
 
       it('should create a rejected order', async () => {
@@ -255,11 +287,13 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.REJECTED);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(
+          OrderStatus.REJECTED,
+        );
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
       });
     });
 
@@ -281,12 +315,14 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
-        expect(ordersSaved[0].price).toBe(mockedMarketData.close);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.FILLED);
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
+        expect(ordersSaved[initialOrdersCount].price).toBe(
+          mockedMarketData.close,
+        );
       });
 
       it('should create a sell market order', async () => {
@@ -306,12 +342,14 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
-        expect(ordersSaved[0].price).toBe(mockedMarketData.close);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.FILLED);
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
+        expect(ordersSaved[initialOrdersCount].price).toBe(
+          mockedMarketData.close,
+        );
       });
 
       it('should create a cash in market order', async () => {
@@ -331,12 +369,12 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
-        expect(ordersSaved[0].price).toBe(1);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.FILLED);
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
+        expect(ordersSaved[initialOrdersCount].price).toBe(1);
       });
 
       it('should create a cash out market order', async () => {
@@ -356,12 +394,12 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.FILLED);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
-        expect(ordersSaved[0].price).toBe(1);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(OrderStatus.FILLED);
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
+        expect(ordersSaved[initialOrdersCount].price).toBe(1);
       });
 
       it('should create a rejected order', async () => {
@@ -381,13 +419,60 @@ describe('OrdersModule E2E Testing', () => {
           .expect('Content-Type', /json/);
 
         expect(orderRepositoryMock.save).toHaveBeenCalled();
-        expect(ordersSaved.length).toBe(1);
-        expect(ordersSaved[0].status).toBe(OrderStatus.REJECTED);
-        expect(ordersSaved[0].size).toBe(payload.size);
-        expect(ordersSaved[0].side).toBe(payload.side);
-        expect(ordersSaved[0].type).toBe(payload.type);
-        expect(ordersSaved[0].price).toBe(260.0);
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(
+          OrderStatus.REJECTED,
+        );
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
+        expect(ordersSaved[initialOrdersCount].price).toBe(260.0);
       });
+
+      it('should create a cash out rejected order', async () => {
+        const payload = {
+          userid: 2,
+          instrumentTicker: mockedCash.ticker,
+          price: 1,
+          size: 1000000000,
+          side: OrderSide.CASH_OUT,
+          type: OrderType.MARKET,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(
+          OrderStatus.REJECTED,
+        );
+        expect(ordersSaved[initialOrdersCount].size).toBe(payload.size);
+        expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
+        expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
+        expect(ordersSaved[initialOrdersCount].price).toBe(1);
+      });
+    });
+  });
+
+  describe('Cancel orders', () => {
+    it('should cancel a NEW order', async () => {
+      const order = await request(app.getHttpServer())
+        .post('/v1/orders/31/cancel')
+        .expect(200);
+
+      expect(orderRepositoryMock.save).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      expect(order.body['status']).toBe(OrderStatus.CANCELLED);
+    });
+
+    it('should return error if order was not in NEW status', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/orders/32/cancel')
+        .expect(400);
     });
   });
 });

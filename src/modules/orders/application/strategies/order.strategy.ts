@@ -17,12 +17,15 @@ export abstract class OrderStrategy implements IOrderStrategy {
     portfolio: IPortfolio,
     initialStatus: TOrderStatus = OrderStatus.NEW,
   ): TOrderStatus {
-    if (order.side === OrderSide.CASH_IN || order.side === OrderSide.CASH_OUT) {
-      return OrderStatus.FILLED;
-    }
-
     const assetTotal = Number(order.size || 0);
     const fiatTotal = assetTotal * Number(order.price || 0);
+    if (order.side === OrderSide.CASH_IN || order.side === OrderSide.CASH_OUT) {
+      return order.side === OrderSide.CASH_IN ||
+        portfolio.available >= assetTotal
+        ? OrderStatus.FILLED
+        : OrderStatus.REJECTED;
+    }
+
     if (order.side === OrderSide.BUY) {
       return portfolio.available >= fiatTotal
         ? initialStatus
