@@ -8,4 +8,5 @@
   - Las ordenes CASH_IN y CASH_OUT solo afectan al balance en pesos disponible a utilizar
   - Las ordenes de tipo LIMIT en estado NEW solo afectan al balance en pesos disponible a utilizar. Al no estar ejecutadas y el usuario no disponer de esas acciones aun en su cartera, no se calculara ni el valor monetario de la posicion ni el rendimiento total
   - Las ordenes de tipo MARKET en estado FILLED afectaran al valor monetario de la posicion y al rendimiento total de la cartera del usuario
+  - A la hora de calcular el rendimiento/PnL, se utilizara los valores del `marketdata` mas reciente. No se comparará las fechas de creacion de `marketdata` y `order` para buscar el `marketdata` que corresponda a la fecha de alta de la orden. Como resultado, el portfolio siempre mostrara el rendimiento comparado con el cierre del dia anterior, aun si esa accion en particular no se hubiera comprado el dia anterior
   - Disclaimer: en la base de datos provista, el usuario 1 tiene una orden LIMIT BUY NEW de 60 `BMA` (aun pendiente), una LIMIT BUY FILLED de 20 `BMA` y otra MARKET SELL FILLED de 30 `BMA`. Dado esto, el balance final de este activo es de -10 `BMA`.

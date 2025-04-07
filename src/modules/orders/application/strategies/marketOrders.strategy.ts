@@ -12,6 +12,7 @@ import { OrdersRepository } from '../../infrastructure/orders.repository';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
 import { defineNewOrderSize } from '../helpers';
 import { IPortfolio, IPortfolioImpact } from '../../domain/portfolio.model';
+import { InvalidNewOrderInput } from '../../domain/orders.errors';
 
 @Injectable()
 export class MarketOrdersStrategy
@@ -41,7 +42,9 @@ export class MarketOrdersStrategy
       newOrder.side === OrderSide.CASH_OUT
     ) {
       if (!newOrder.size) {
-        throw new Error('Size is required for cash in / out orders'); // Improvement: Throw custom module errors
+        throw new InvalidNewOrderInput(
+          'Size is required for cash in / out orders',
+        );
       }
 
       newMarketOrder = {

@@ -13,7 +13,7 @@ import { CreateOrderDTO, createOrderSchema } from './dto/createOrder.dto';
 import { OrdersService } from '../application/orders.service';
 import { ZodValidationPipe } from 'src/pipes/zodValidator.pipe';
 import { Response } from 'express';
-import { OrderNotFound } from '../domain/orders.errors';
+import { InvalidNewOrderInput, OrderNotFound } from '../domain/orders.errors';
 
 @Controller()
 export class OrdersController {
@@ -25,8 +25,17 @@ export class OrdersController {
 
   @Post()
   @UsePipes(new ZodValidationPipe(createOrderSchema))
-  createOrder(@Body() order: CreateOrderDTO) {
-    return this.ordersService.createOrder(order);
+  createOrder(@Body() order: CreateOrderDTO, @Res() res: Response) {
+    return this.ordersService
+      .createOrder(order)
+      .then((o) => res.status(201).json(o))
+      .catch((err) => {
+        if (err instanceof InvalidNewOrderInput) {
+          return res.status(400).json({ message: err.message, input: order });
+        }
+
+        throw new InternalServerErrorException(err);
+      });
   }
 
   @Post('/:id/cancel')

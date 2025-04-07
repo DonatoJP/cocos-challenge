@@ -341,6 +341,24 @@ describe('Orders - Application', () => {
         expect(savedOrder.price).toBe(mockedMarketData.close);
       });
 
+      it('should create with size', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedCash.ticker,
+          size: 100, // Buy 100 DYCA at market price
+          price: 100, // should be ignored and latest market price should be used
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(ordersRepositoryMock.create).toHaveBeenCalled();
+        expect(savedOrders.length).toBe(initialOrdersCount + 1);
+
+        const savedOrder = savedOrders[initialOrdersCount];
+        expect(savedOrder.size).toBe(newOrder.size);
+      });
+
       it('should define size based on amount', async () => {
         const newOrder = {
           userid: 1,
@@ -359,24 +377,6 @@ describe('Orders - Application', () => {
         expect(savedOrder.size).toBe(
           Math.floor(newOrder.amount / mockedMarketData.close),
         );
-      });
-
-      it('should keep size', async () => {
-        const newOrder = {
-          userid: 1,
-          instrumentTicker: mockedCash.ticker,
-          size: 100, // Buy 100 DYCA at market price
-          price: 100, // should be ignored and latest market price should be used
-          side: OrderSide.BUY,
-          type: OrderType.MARKET,
-        };
-
-        await ordersService.createOrder(newOrder);
-        expect(ordersRepositoryMock.create).toHaveBeenCalled();
-        expect(savedOrders.length).toBe(initialOrdersCount + 1);
-
-        const savedOrder = savedOrders[initialOrdersCount];
-        expect(savedOrder.size).toBe(newOrder.size);
       });
 
       it('should prioritize size over amount', async () => {

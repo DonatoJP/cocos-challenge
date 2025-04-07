@@ -302,7 +302,6 @@ describe('OrdersModule E2E Testing', () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'DYCA',
-          price: 100, // Should be ignored and latest market price should be used
           size: 10,
           side: OrderSide.BUY,
           type: OrderType.MARKET,
@@ -329,7 +328,6 @@ describe('OrdersModule E2E Testing', () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'DYCA',
-          price: 100, // Should be ignored and latest market price should be used
           size: 10,
           side: OrderSide.SELL,
           type: OrderType.MARKET,
@@ -352,11 +350,27 @@ describe('OrdersModule E2E Testing', () => {
         );
       });
 
+      it('should reject request if price is sent', async () => {
+        const payload = {
+          userid: 1,
+          instrumentTicker: 'DYCA',
+          size: 10,
+          price: 100,
+          side: OrderSide.SELL,
+          type: OrderType.MARKET,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(400)
+          .expect('Content-Type', /json/);
+      });
+
       it('should create a cash in market order', async () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'ARS',
-          price: 100, // Price for cash in should be 1
           size: 1000,
           side: OrderSide.CASH_IN,
           type: OrderType.MARKET,
@@ -381,7 +395,6 @@ describe('OrdersModule E2E Testing', () => {
         const payload = {
           userid: 1,
           instrumentTicker: 'ARS',
-          price: 100, // Price for cash in should be 1
           size: 1000,
           side: OrderSide.CASH_OUT,
           type: OrderType.MARKET,
@@ -406,7 +419,6 @@ describe('OrdersModule E2E Testing', () => {
         const payload = {
           userid: 2,
           instrumentTicker: mockedInstrument.ticker,
-          price: 100,
           size: 1000,
           side: OrderSide.BUY,
           type: OrderType.MARKET,
@@ -433,7 +445,6 @@ describe('OrdersModule E2E Testing', () => {
         const payload = {
           userid: 2,
           instrumentTicker: mockedCash.ticker,
-          price: 1,
           size: 1000000000,
           side: OrderSide.CASH_OUT,
           type: OrderType.MARKET,

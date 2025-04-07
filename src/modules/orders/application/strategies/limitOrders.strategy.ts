@@ -11,6 +11,7 @@ import { OrdersRepository } from '../../infrastructure/orders.repository';
 import { INewOrder, TOrderSide, TOrderStatus } from '../../domain/orders.types';
 import { defineNewOrderSize } from '../helpers';
 import { IPortfolio, IPortfolioImpact } from '../../domain/portfolio.model';
+import { InvalidNewOrderInput } from '../../domain/orders.errors';
 
 @Injectable()
 export class LimitOrdersStrategy extends OrderStrategy implements OnModuleInit {
@@ -33,7 +34,9 @@ export class LimitOrdersStrategy extends OrderStrategy implements OnModuleInit {
       newOrder.side === OrderSide.CASH_IN ||
       newOrder.side === OrderSide.CASH_OUT
     ) {
-      throw new Error('Limit cash in/out orders are not allowed');
+      throw new InvalidNewOrderInput(
+        'Limit cash in/out orders are not allowed',
+      );
     }
 
     const order = Order.from({

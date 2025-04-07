@@ -9,10 +9,11 @@ import {
   IPortfolioImpact,
   IPortfolioPerformance,
 } from '../domain/portfolio.model';
-import { OrderStatus } from '../domain/orders.constants';
-import { OrderNotFound } from '../domain/orders.errors';
-import { MarketData } from 'src/modules/market/domain/marketData.model';
+import { OrderSide, OrderStatus } from '../domain/orders.constants';
+import { InvalidNewOrderInput, OrderNotFound } from '../domain/orders.errors';
+import { IMarketData } from 'src/modules/market/domain/marketData.model';
 import { roundDecimals } from 'src/lib/helpers';
+import { InstrumentTypes } from 'src/modules/market/domain/market.constants';
 
 @Injectable()
 export class OrdersService {
@@ -45,6 +46,22 @@ export class OrdersService {
       this.marketPort.getInstrumentByTicker(newOrder.instrumentTicker),
       this.calculateAssetPortfolioForUser(newOrder.userid),
     ]);
+
+    if (!instrument) {
+      throw new InvalidNewOrderInput(
+        `Instrument ${newOrder.instrumentTicker} not found`,
+      );
+    }
+
+    if (
+      instrument.type === InstrumentTypes.MONEDA &&
+      newOrder.side !== OrderSide.CASH_IN &&
+      newOrder.side !== OrderSide.CASH_OUT
+    ) {
+      throw new InvalidNewOrderInput(
+        `Only cash in/out orders are allowed for ${instrument.ticker}`,
+      );
+    }
 
     return strategy.createOrder(
       {
@@ -89,7 +106,7 @@ export class OrdersService {
       }
     });
 
-    let latestMarketData: (MarketData | null)[] = [];
+    let latestMarketData: (IMarketData | null)[] = [];
     if (includePnl) {
       const instrumentIds = orders
         .map((o) => o.instrumentid)
@@ -103,22 +120,24 @@ export class OrdersService {
     return {
       userid: userId,
       available,
-      assets: Object.entries(assets).map(([instrumentid, size]) => {
-        const md = latestMarketData.find(
-          (lmd) => lmd && lmd.instrumentid === +instrumentid,
-        );
-        return {
-          instrumentid: Number(instrumentid),
-          size: Number(size),
-          ...(includePnl && md && this.getDailyPerformance(Number(size), md)),
-        };
-      }),
+      assets: Object.entries(assets)
+        .map(([instrumentid, size]) => {
+          const md = latestMarketData.find(
+            (lmd) => lmd && lmd.instrumentid === +instrumentid,
+          );
+          return {
+            instrumentid: Number(instrumentid),
+            size: Number(size),
+            ...(includePnl && md && this.getDailyPerformance(Number(size), md)),
+          };
+        })
+        .filter((pa) => pa.size !== 0),
     };
   }
 
   private getDailyPerformance(
     orderSize: number,
-    latestMarketData: MarketData,
+    latestMarketData: IMarketData,
   ): IPortfolioPerformance {
     return {
       total: orderSize * Number(latestMarketData.close),
