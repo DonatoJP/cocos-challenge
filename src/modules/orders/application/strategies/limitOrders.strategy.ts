@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { Order } from '../../domain/orders.model';
+import { IOrder, Order } from '../../domain/orders.model';
 import { IOrderStrategy } from './order.strategy';
 import {
   OrderSide,
@@ -8,8 +8,9 @@ import {
 } from '../../domain/orders.constants';
 import { OrdersService } from '../orders.service';
 import { OrdersRepository } from '../../infrastructure/orders.repository';
-import { INewOrder } from '../../domain/orders.types';
+import { INewOrder, TOrderSide, TOrderStatus } from '../../domain/orders.types';
 import { defineNewOrderSize } from '../helpers';
+import { IPortfolioImpact } from '../../domain/portfolio.model';
 
 @Injectable()
 export class LimitOrdersStrategy implements IOrderStrategy, OnModuleInit {
@@ -37,5 +38,33 @@ export class LimitOrdersStrategy implements IOrderStrategy, OnModuleInit {
     });
 
     return this.ordersRepository.create(order);
+  }
+
+  getPortfolioImpact(order: IOrder): IPortfolioImpact {
+    const orderStatus: TOrderStatus = order.status as TOrderStatus;
+    const orderSide: TOrderSide = order.side as TOrderSide;
+    let fiat = 0;
+    let asset = 0;
+    if (orderStatus === OrderStatus.NEW || orderStatus === OrderStatus.FILLED) {
+      const assetTotal = Number(order.size || 0);
+      const fiatTotal = assetTotal * Number(order.price || 0);
+
+      if (orderSide === OrderSide.BUY) {
+        fiat -= fiatTotal;
+        if (orderStatus === OrderStatus.FILLED) {
+          asset += assetTotal;
+        }
+      } else if (orderSide === OrderSide.SELL) {
+        asset -= assetTotal;
+        if (orderStatus === OrderStatus.FILLED) {
+          fiat += fiatTotal;
+        }
+      }
+    }
+
+    return {
+      fiat,
+      asset,
+    };
   }
 }

@@ -2,8 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { INewOrder, TOrderType } from '../domain/orders.types';
 import { IOrderStrategy } from './strategies/order.strategy';
 import { OrdersRepository } from '../infrastructure/orders.repository';
-import { Order } from '../domain/orders.model';
+import { IOrder, Order } from '../domain/orders.model';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
+import { IPortfolioImpact } from '../domain/portfolio.model';
 
 @Injectable()
 export class OrdersService {
@@ -40,5 +41,14 @@ export class OrdersService {
       ...newOrder,
       instrumentid: instrument?.id,
     });
+  }
+
+  getOrderPortfolioImpact(order: IOrder): IPortfolioImpact {
+    const strategy = this.ordersStrategies.get(order.type as TOrderType);
+    if (!strategy) {
+      throw new Error(`Strategy for order type ${order.type} not found`);
+    }
+
+    return strategy.getPortfolioImpact(order);
   }
 }

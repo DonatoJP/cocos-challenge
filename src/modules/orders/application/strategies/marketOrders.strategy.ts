@@ -7,10 +7,11 @@ import {
   OrderType,
 } from '../../domain/orders.constants';
 import { OrdersService } from '../orders.service';
-import { INewOrder } from '../../domain/orders.types';
+import { INewOrder, TOrderSide, TOrderStatus } from '../../domain/orders.types';
 import { OrdersRepository } from '../../infrastructure/orders.repository';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
 import { defineNewOrderSize } from '../helpers';
+import { IPortfolioImpact } from '../../domain/portfolio.model';
 
 @Injectable()
 export class MarketOrdersStrategy implements IOrderStrategy, OnModuleInit {
@@ -59,5 +60,31 @@ export class MarketOrdersStrategy implements IOrderStrategy, OnModuleInit {
     });
 
     return this.ordersRepository.create(order);
+  }
+
+  getPortfolioImpact(order: IOrder): IPortfolioImpact {
+    const orderStatus: TOrderStatus = order.status as TOrderStatus;
+    const orderSide: TOrderSide = order.side as TOrderSide;
+    let fiat = 0;
+    let asset = 0;
+
+    if (orderStatus === OrderStatus.FILLED) {
+      const assetTotal = Number(order.size || 0);
+      const fiatTotal = assetTotal * Number(order.price || 0);
+      if (orderSide == OrderSide.CASH_IN) fiat += fiatTotal;
+      else if (orderSide == OrderSide.CASH_OUT) fiat -= fiatTotal;
+      else if (orderSide === OrderSide.BUY) {
+        fiat -= fiatTotal;
+        asset += assetTotal;
+      } else if (orderSide === OrderSide.SELL) {
+        asset -= assetTotal;
+        fiat += fiatTotal;
+      }
+    }
+
+    return {
+      fiat,
+      asset,
+    };
   }
 }

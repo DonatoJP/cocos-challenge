@@ -10,3 +10,8 @@ export interface IPortfolio {
   available: number;
   assets: IPortfolioAsset[];
 }
+
+export interface IPortfolioImpact {
+  fiat: number;
+  asset: number;
+}
