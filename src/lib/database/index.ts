@@ -1,10 +1,9 @@
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { EntitySchema } from 'typeorm';
 
 export const LoadDatabaseModule = () =>
   TypeOrmModule.forRootAsync({
-    imports: [ConfigModule],
     useFactory: (configService: ConfigService) => {
       return {
         type: 'postgres',
