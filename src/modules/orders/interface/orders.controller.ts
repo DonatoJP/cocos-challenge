@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Get,
   HttpCode,
   Param,
   Post,
@@ -18,10 +17,6 @@ import { InvalidNewOrderInput, OrderNotFound } from '../domain/orders.errors';
 @Controller()
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
-  @Get()
-  async getAllOrders() {
-    return this.ordersService.getAllOrders();
-  }
 
   @Post()
   @UsePipes(new ZodValidationPipe(createOrderSchema))

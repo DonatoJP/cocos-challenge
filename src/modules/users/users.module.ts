@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { UsersRepository } from './infraestructure/users.repository';
 import { UserSchema } from './infraestructure/schemas/users.schema';
 import { LoadDatabaseFeatures } from 'src/lib/database';
@@ -10,7 +10,16 @@ import { OrdersAdapter } from '../orders/interface/adapters/orders.adapter';
 import { OrdersModule } from '../orders/orders.module';
 
 @Module({
-  imports: [LoadDatabaseFeatures([UserSchema]), OrdersModule],
+  imports: [
+    LoadDatabaseFeatures([UserSchema]),
+    RouterModule.register([
+      {
+        path: 'v1/users',
+        module: UsersModule,
+      },
+    ]),
+    OrdersModule,
+  ],
   providers: [
     UsersRepository,
     UsersService,
@@ -21,18 +30,4 @@ import { OrdersModule } from '../orders/orders.module';
   ],
   controllers: [UsersController],
 })
-export class UsersModule {
-  static withRouting(): DynamicModule {
-    return {
-      module: UsersModule,
-      imports: [
-        RouterModule.register([
-          {
-            path: 'v1/users',
-            module: UsersModule,
-          },
-        ]),
-      ],
-    };
-  }
-}
+export class UsersModule {}

@@ -10,12 +10,16 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { OrderSide, OrderStatus, OrderType } from '../domain/orders.constants';
 import { Instrument } from 'src/modules/market/domain/instruments.model';
 import { MarketData } from 'src/modules/market/domain/marketData.model';
+import { CACHE_MANAGER, Cache, CacheModule } from '@nestjs/cache-manager';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 describe('OrdersModule E2E Testing', () => {
   let app: INestApplication<App>;
   let orderRepositoryMock: jest.Mocked<Partial<Repository<Order>>>;
   let instrumentRepositoryMock: jest.Mocked<Partial<Repository<Instrument>>>;
   let marketRepositoryMock: jest.Mocked<Partial<Repository<MarketData>>>;
+  let cacheManagerMock: jest.Mocked<Partial<Cache>>;
+
   let ordersSaved: Order[];
   let initialOrdersCount: number;
   const mockedInstrument = {
@@ -136,8 +140,18 @@ describe('OrdersModule E2E Testing', () => {
       findOne: jest.fn().mockResolvedValue(mockedMarketData),
     };
 
+    cacheManagerMock = {
+      set: jest.fn(),
+      get: jest.fn(),
+      del: jest.fn(),
+    };
+
     const module = await Test.createTestingModule({
-      imports: [OrdersModule.withRouting()],
+      imports: [
+        OrdersModule,
+        CacheModule.register({ isGlobal: true }),
+        EventEmitterModule.forRoot(),
+      ],
     })
       .overrideProvider(getRepositoryToken(Order))
       .useValue(orderRepositoryMock)
@@ -145,6 +159,8 @@ describe('OrdersModule E2E Testing', () => {
       .useValue(instrumentRepositoryMock)
       .overrideProvider(getRepositoryToken(MarketData))
       .useValue(marketRepositoryMock)
+      .overrideProvider(CACHE_MANAGER)
+      .useValue(cacheManagerMock)
       .compile();
 
     app = module.createNestApplication();
@@ -161,15 +177,6 @@ describe('OrdersModule E2E Testing', () => {
 
   afterEach(async () => {
     await _cleanUp();
-  });
-
-  describe('With routing', () => {
-    it('should register module with routing configuration', async () => {
-      return request(app.getHttpServer())
-        .get('/v1/orders')
-        .expect(200)
-        .expect('Content-Type', /json/);
-    });
   });
 
   describe('Create orders', () => {
@@ -467,6 +474,43 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[initialOrdersCount].price).toBe(1);
       });
     });
+
+    describe('Cache', () => {
+      it('Should invalidate cache upon order creation', async () => {
+        const payload = {
+          userid: 1,
+          instrumentTicker: 'DYCA',
+          size: 10,
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(cacheManagerMock.del).toHaveBeenCalled();
+      });
+
+      it('Should not invalidate cache if order was REJECTED', async () => {
+        const payload = {
+          userid: 1,
+          instrumentTicker: 'DYCA',
+          size: 1000000000000,
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201);
+
+        expect(cacheManagerMock.del).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('Cancel orders', () => {
@@ -484,6 +528,14 @@ describe('OrdersModule E2E Testing', () => {
       await request(app.getHttpServer())
         .post('/v1/orders/32/cancel')
         .expect(400);
+    });
+
+    it('should invalidate user balance cache', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/orders/31/cancel')
+        .expect(200);
+
+      expect(cacheManagerMock.del).toHaveBeenCalled();
     });
   });
 });

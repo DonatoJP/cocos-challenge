@@ -19,3 +19,8 @@ export interface IPortfolioImpact {
   fiat: number;
   asset: number;
 }
+
+export interface IBalances {
+  fiat: number;
+  assets: Record<number, number>;
+}

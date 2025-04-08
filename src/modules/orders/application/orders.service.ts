@@ -1,10 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { INewOrder, TOrderType } from '../domain/orders.types';
 import { IOrderStrategy } from './strategies/order.strategy';
 import { OrdersRepository } from '../infrastructure/orders.repository';
 import { IOrder, Order } from '../domain/orders.model';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
 import {
+  IBalances,
   IPortfolio,
   IPortfolioImpact,
   IPortfolioPerformance,
@@ -14,14 +15,23 @@ import { InvalidNewOrderInput, OrderNotFound } from '../domain/orders.errors';
 import { IMarketData } from 'src/modules/market/domain/marketData.model';
 import { roundDecimals } from 'src/lib/helpers';
 import { InstrumentTypes } from 'src/modules/market/domain/market.constants';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import {
+  IOrderMessageBrokerPort,
+  ORDERS_MESSAGE_BROKER,
+} from 'src/ports/orders.port';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
   private readonly ordersStrategies: Map<TOrderType, IOrderStrategy> =
     new Map();
   constructor(
     private readonly ordersRepository: OrdersRepository,
     @Inject(MARKET_ACCESS_PORT) private readonly marketPort: MarketAccessPort,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    @Inject(ORDERS_MESSAGE_BROKER)
+    private readonly ordersMessageBroker: IOrderMessageBrokerPort,
   ) {}
 
   registerStrategy(type: TOrderType, strategy: IOrderStrategy) {
@@ -30,10 +40,9 @@ export class OrdersService {
     }
 
     this.ordersStrategies.set(type, strategy);
-  }
-
-  async getAllOrders(): Promise<Order[]> {
-    return this.ordersRepository.getAll();
+    this.logger.debug(
+      `Registered strategy for ${type}: ${strategy?.constructor?.name}`,
+    );
   }
 
   async createOrder(newOrder: INewOrder): Promise<Order> {
@@ -63,63 +72,92 @@ export class OrdersService {
       );
     }
 
-    return strategy.createOrder(
+    const order = await strategy.createOrder(
       {
         ...newOrder,
         instrumentid: instrument?.id,
       },
       portfolio,
     );
+
+    this.logger.log(
+      `Created order ${order.type} ${order.side} for user ${order.userid} with status ${order.status} `,
+    );
+
+    this.ordersMessageBroker.orderCreated(order);
+
+    return order;
   }
 
   async cancelOrder(orderId: number): Promise<Order> {
     const order = await this.ordersRepository.getById(orderId);
     if (order?.status !== OrderStatus.NEW) throw new OrderNotFound();
 
-    return this.ordersRepository.updateById(orderId, {
-      status: OrderStatus.CANCELLED,
-    }) as Order;
+    return this.ordersRepository
+      .updateById(orderId, {
+        status: OrderStatus.CANCELLED,
+      })
+      .then((o) => {
+        this.logger.log(`Cancelled order ${orderId} for user ${order.userid}`);
+        this.ordersMessageBroker.orderStatusUpdated(
+          order,
+          order.status!,
+          o!.status!,
+        );
+        return o;
+      }) as Order;
   }
 
   async calculateAssetPortfolioForUser(
     userId: number,
     { includePnl }: { includePnl?: boolean } = {},
   ): Promise<IPortfolio> {
-    const orders = await this.ordersRepository.getUserOrders(userId);
+    const balances = await this.cacheManager.get<IBalances>(
+      `balance_${userId}`,
+    );
+    let fiat = 0;
+    let assets = {};
+    if (!balances) {
+      const orders = await this.ordersRepository.getUserOrders(userId);
 
-    const porfolioImpacts = orders.map((order) => ({
-      ...order,
-      portfolioImpact: this.getOrderPortfolioImpact(order),
-    }));
+      const porfolioImpacts = orders.map((order) => ({
+        ...order,
+        portfolioImpact: this.getOrderPortfolioImpact(order),
+      }));
 
-    let available = 0;
-    const assets = {};
+      porfolioImpacts.forEach((order) => {
+        if (order.portfolioImpact) {
+          fiat += order.portfolioImpact.fiat;
+          if (order.instrumentid && !(order.instrumentid in assets)) {
+            assets[order.instrumentid] = 0;
+          }
 
-    porfolioImpacts.forEach((order) => {
-      if (order.portfolioImpact) {
-        available += order.portfolioImpact.fiat;
-        if (order.instrumentid && !(order.instrumentid in assets)) {
-          assets[order.instrumentid] = 0;
+          assets[order.instrumentid!] += order.portfolioImpact.asset;
         }
+      });
 
-        assets[order.instrumentid!] += order.portfolioImpact.asset;
-      }
-    });
+      await this.cacheManager.set<IBalances>(`balance_${userId}`, {
+        fiat,
+        assets,
+      });
+      this.logger.debug(`Setting balance cache for user ${userId}`);
+    } else {
+      fiat = balances.fiat;
+      assets = balances.assets;
+    }
 
     let latestMarketData: (IMarketData | null)[] = [];
     if (includePnl) {
-      const instrumentIds = orders
-        .map((o) => o.instrumentid)
-        .filter((o) => o !== undefined);
+      const instrumentIds = Object.keys(assets);
 
       latestMarketData = await Promise.all(
-        instrumentIds.map((iid) => this.marketPort.getLatestMarketData(iid)),
+        instrumentIds.map((iid) => this.marketPort.getLatestMarketData(+iid)),
       );
     }
 
     return {
       userid: userId,
-      available,
+      available: fiat,
       assets: Object.entries(assets)
         .map(([instrumentid, size]) => {
           const md = latestMarketData.find(
@@ -162,5 +200,10 @@ export class OrdersService {
     }
 
     return strategy.getPortfolioImpact(order);
+  }
+
+  async invalidateBalanceCache(userid: number): Promise<void> {
+    this.logger.debug(`Invalidating balance cache for user ${userid}`);
+    await this.cacheManager.del(`balance_${userid}`);
   }
 }

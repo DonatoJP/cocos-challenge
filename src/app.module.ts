@@ -4,14 +4,18 @@ import { LoadConfigModule } from './lib/config';
 import { LoadDatabaseModule } from './lib/database';
 import { MarketModule } from './modules/market/market.module';
 import { UsersModule } from './modules/users/users.module';
+import { LoadCacheModule } from './lib/cache';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
     LoadConfigModule(),
     LoadDatabaseModule(),
-    OrdersModule.withRouting(),
-    MarketModule.withRouting(),
-    UsersModule.withRouting(),
+    LoadCacheModule(),
+    EventEmitterModule.forRoot(),
+    OrdersModule,
+    MarketModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [],

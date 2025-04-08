@@ -7,12 +7,20 @@ import { IOrder, Order } from '../domain/orders.model';
 import { OrderStatus, OrderType } from '../domain/orders.constants';
 import { OrderSide } from '../domain/orders.constants';
 import { MARKET_ACCESS_PORT, MarketAccessPort } from 'src/ports/market.port';
+import { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import {
+  IOrderMessageBrokerPort,
+  ORDERS_MESSAGE_BROKER,
+} from 'src/ports/orders.port';
 
 describe('Orders - Application', () => {
   let module: TestingModule;
   let ordersService: OrdersService;
   let ordersRepositoryMock: jest.Mocked<Partial<OrdersRepository>>;
   let marketPortMock: jest.Mocked<Partial<MarketAccessPort>>;
+  let cacheManagerMock: jest.Mocked<Partial<Cache>>;
+  let messageBrokerMock: jest.Mocked<Partial<IOrderMessageBrokerPort>>;
   let savedOrders: Order[];
   let initialOrdersCount: number;
   const mockedIntrument = {
@@ -111,6 +119,17 @@ describe('Orders - Application', () => {
       getLatestMarketPrice: jest.fn().mockResolvedValue(mockedMarketData.close),
     };
 
+    cacheManagerMock = {
+      set: jest.fn(),
+      get: jest.fn(),
+      del: jest.fn(),
+    };
+
+    messageBrokerMock = {
+      orderCreated: jest.fn(),
+      orderStatusUpdated: jest.fn(),
+    };
+
     module = await Test.createTestingModule({
       imports: [],
       providers: [
@@ -122,6 +141,14 @@ describe('Orders - Application', () => {
         {
           provide: MARKET_ACCESS_PORT,
           useValue: marketPortMock,
+        },
+        {
+          provide: CACHE_MANAGER,
+          useValue: cacheManagerMock,
+        },
+        {
+          provide: ORDERS_MESSAGE_BROKER,
+          useValue: messageBrokerMock,
         },
         LimitOrdersStrategy,
         MarketOrdersStrategy,
@@ -246,6 +273,20 @@ describe('Orders - Application', () => {
         const order = await ordersService.createOrder(newOrder);
         expect(order.status).toBe(OrderStatus.REJECTED);
       });
+
+      it('should send message ORDER_CREATED', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedIntrument.ticker,
+          size: 10,
+          price: 100,
+          side: OrderSide.BUY,
+          type: OrderType.LIMIT,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(messageBrokerMock.orderCreated).toHaveBeenCalled();
+      });
     });
 
     describe('Market Orders', () => {
@@ -326,7 +367,7 @@ describe('Orders - Application', () => {
       it('should have price as latest market price', async () => {
         const newOrder = {
           userid: 1,
-          instrumentTicker: mockedCash.ticker,
+          instrumentTicker: mockedIntrument.ticker,
           size: 100, // Buy 100 DYCA at market price
           price: 100, // should be ignored and latest market price should be used
           side: OrderSide.SELL,
@@ -344,7 +385,7 @@ describe('Orders - Application', () => {
       it('should create with size', async () => {
         const newOrder = {
           userid: 1,
-          instrumentTicker: mockedCash.ticker,
+          instrumentTicker: mockedIntrument.ticker,
           size: 100, // Buy 100 DYCA at market price
           price: 100, // should be ignored and latest market price should be used
           side: OrderSide.BUY,
@@ -362,7 +403,7 @@ describe('Orders - Application', () => {
       it('should define size based on amount', async () => {
         const newOrder = {
           userid: 1,
-          instrumentTicker: mockedCash.ticker,
+          instrumentTicker: mockedIntrument.ticker,
           amount: 300, // "Use 300 ARS to buy DYCA at market price"
           price: 100, // should be ignored and latest market price should be used
           side: OrderSide.BUY,
@@ -382,7 +423,7 @@ describe('Orders - Application', () => {
       it('should prioritize size over amount', async () => {
         const newOrder = {
           userid: 1,
-          instrumentTicker: mockedCash.ticker,
+          instrumentTicker: mockedIntrument.ticker,
           size: 100, // Buy 100 DYCA at market price
           amount: 300, // "Use 300 ARS to buy DYCA at market price"
           side: OrderSide.BUY,
@@ -444,6 +485,20 @@ describe('Orders - Application', () => {
         const order = await ordersService.createOrder(newOrder);
         expect(order.status).toBe(OrderStatus.REJECTED);
       });
+
+      it('should send message ORDER_CREATED', async () => {
+        const newOrder = {
+          userid: 1,
+          instrumentTicker: mockedIntrument.ticker,
+          size: 10,
+          price: 100,
+          side: OrderSide.BUY,
+          type: OrderType.MARKET,
+        };
+
+        await ordersService.createOrder(newOrder);
+        expect(messageBrokerMock.orderCreated).toHaveBeenCalled();
+      });
     });
 
     describe('Cancel Orders', () => {
@@ -451,6 +506,23 @@ describe('Orders - Application', () => {
         const order = await ordersService.cancelOrder(1);
         expect(ordersRepositoryMock.updateById).toHaveBeenCalled();
         expect(order.status).toBe(OrderStatus.CANCELLED);
+      });
+
+      it('should send message ORDER_STATUS_UPDATED', async () => {
+        await ordersService.cancelOrder(1);
+        expect(messageBrokerMock.orderStatusUpdated).toHaveBeenCalled();
+      });
+    });
+
+    describe('Cache balance', () => {
+      it('should cache user balances', async () => {
+        const portfolioOne =
+          await ordersService.calculateAssetPortfolioForUser(1);
+        const portfolioCached =
+          await ordersService.calculateAssetPortfolioForUser(1);
+        expect(cacheManagerMock.set).toHaveBeenCalled();
+        expect(cacheManagerMock.get).toHaveBeenCalled();
+        expect(portfolioOne).toStrictEqual(portfolioCached);
       });
     });
   });
