@@ -12,6 +12,7 @@ import { Instrument } from 'src/modules/market/domain/instruments.model';
 import { MarketData } from 'src/modules/market/domain/marketData.model';
 import { CACHE_MANAGER, Cache, CacheModule } from '@nestjs/cache-manager';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { RouterModule } from '@nestjs/core';
 
 describe('OrdersModule E2E Testing', () => {
   let app: INestApplication<App>;
@@ -83,6 +84,17 @@ describe('OrdersModule E2E Testing', () => {
         datetime: new Date(),
       }),
       Order.from({
+        id: 21,
+        userid: 2,
+        instrumentid: mockedInstrument.id,
+        size: 10000,
+        price: 1,
+        type: OrderType.MARKET,
+        side: OrderSide.BUY,
+        status: OrderStatus.FILLED,
+        datetime: new Date(),
+      }),
+      Order.from({
         id: 31,
         userid: 3,
         instrumentid: mockedInstrument.id,
@@ -148,9 +160,15 @@ describe('OrdersModule E2E Testing', () => {
 
     const module = await Test.createTestingModule({
       imports: [
-        OrdersModule,
         CacheModule.register({ isGlobal: true }),
         EventEmitterModule.forRoot(),
+        RouterModule.register([
+          {
+            path: 'v1/orders',
+            module: OrdersModule,
+          },
+        ]),
+        OrdersModule,
       ],
     })
       .overrideProvider(getRepositoryToken(Order))
@@ -302,6 +320,30 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
         expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
       });
+
+      it('should reject an order if size equals 0', async () => {
+        const payload = {
+          userid: 2,
+          instrumentTicker: 'DYCA',
+          price: 100,
+          amount: 1,
+          side: OrderSide.BUY,
+          type: OrderType.LIMIT,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(
+          OrderStatus.REJECTED,
+        );
+        expect(ordersSaved[initialOrdersCount].size).toBe(0);
+      });
     });
 
     describe('Market Orders', () => {
@@ -446,6 +488,29 @@ describe('OrdersModule E2E Testing', () => {
         expect(ordersSaved[initialOrdersCount].side).toBe(payload.side);
         expect(ordersSaved[initialOrdersCount].type).toBe(payload.type);
         expect(ordersSaved[initialOrdersCount].price).toBe(260.0);
+      });
+
+      it('should reject an order if size equals 0', async () => {
+        const payload = {
+          userid: 2,
+          instrumentTicker: mockedInstrument.ticker,
+          amount: 1,
+          side: OrderSide.SELL,
+          type: OrderType.MARKET,
+        };
+
+        await request(app.getHttpServer())
+          .post('/v1/orders')
+          .send(payload)
+          .expect(201)
+          .expect('Content-Type', /json/);
+
+        expect(orderRepositoryMock.save).toHaveBeenCalled();
+        expect(ordersSaved.length).toBe(initialOrdersCount + 1);
+        expect(ordersSaved[initialOrdersCount].status).toBe(
+          OrderStatus.REJECTED,
+        );
+        expect(ordersSaved[initialOrdersCount].size).toBe(0);
       });
 
       it('should create a cash out rejected order', async () => {

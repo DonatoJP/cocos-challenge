@@ -27,14 +27,16 @@ export abstract class OrderStrategy implements IOrderStrategy {
     }
 
     if (order.side === OrderSide.BUY) {
-      return portfolio.available >= fiatTotal
+      return Number(order.size) > 0 && portfolio.available >= fiatTotal
         ? initialStatus
         : OrderStatus.REJECTED;
     } else if (order.side === OrderSide.SELL) {
       const portfolioAsset = portfolio.assets.find(
         (pa) => pa.instrumentid === order.instrumentid,
       );
-      return portfolioAsset && portfolioAsset.size >= assetTotal
+      return portfolioAsset &&
+        Number(order.size) > 0 &&
+        portfolioAsset.size >= assetTotal
         ? initialStatus
         : OrderStatus.REJECTED;
     }

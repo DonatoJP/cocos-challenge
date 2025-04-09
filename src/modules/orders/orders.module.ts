@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { OrdersController } from './interface/orders.controller';
-import { RouterModule } from '@nestjs/core';
 import { OrdersService } from './application/orders.service';
 import { LimitOrdersStrategy } from './application/strategies/limitOrders.strategy';
 import { MarketOrdersStrategy } from './application/strategies/marketOrders.strategy';
@@ -15,16 +14,7 @@ import { ORDERS_MESSAGE_BROKER } from 'src/ports/orders.port';
 import { OrderEventsPort } from './application/ports/orderEvents.port';
 import { OrderEventsConsumer } from './interface/consumers/orderEvents.consumer';
 @Module({
-  imports: [
-    LoadDatabaseFeatures([OrderSchema]),
-    RouterModule.register([
-      {
-        path: 'v1/orders',
-        module: OrdersModule,
-      },
-    ]),
-    MarketModule,
-  ],
+  imports: [LoadDatabaseFeatures([OrderSchema]), MarketModule],
   controllers: [OrdersController],
   providers: [
     OrdersService,

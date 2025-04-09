@@ -8,7 +8,9 @@ A continuacion, algunas consideraciones que tomé en mi solucion:
 - Al momento de crear ordenes: 
   - No pueden configurarse `amount` y `size` al mismo tiempo (mutuamente excluyentes)
   - Al enviar `amount` (monto en pesos) se determinara `size` siempre como `floor(amount / price)`. Es decir, para la "compra" se compraran menos acciones de las que alcanzarian (no se pueden comprar fracciones de acciones), y para la "venta" se venderá lo máximo que se pueda antes de superar `amount` (no se pueden vender fracciones de acciones).
+  - Si al enviar `amount` al determinar el `size` el mismo da cero, la orden se creará con estado `REJECTED` (no se pueden comprar ni vender 0 acciones)
 - Al momento de calcular el portfolio:
+  - Si el usuario no existe en la base de datos (i.e no existe el ID que se usa de entrada) el portfolio a devolver estará en cero (tanto disponible como en los activos)
   - Las ordenes `CASH_IN` y `CASH_OUT` solo afectan al balance en pesos disponible a utilizar
   - Las ordenes de tipo `LIMIT` en estado `NEW` **solo afectan al balance en pesos disponible a utilizar**. Al no estar ejecutadas y el usuario no disponer de esas acciones aún en su cartera, no afectará al cálculo del valor monetario de la posición ni del rendimiento total
   - Las ordenes de tipo `MARKET` en estado `FILLED` **afectarán al valor monetario de la posición y al rendimiento total de la cartera del usuario**

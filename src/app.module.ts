@@ -6,6 +6,7 @@ import { MarketModule } from './modules/market/market.module';
 import { UsersModule } from './modules/users/users.module';
 import { LoadCacheModule } from './lib/cache';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { RouterModule } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -13,6 +14,20 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     LoadDatabaseModule(),
     LoadCacheModule(),
     EventEmitterModule.forRoot(),
+    RouterModule.register([
+      {
+        path: 'v1/orders',
+        module: OrdersModule,
+      },
+      {
+        path: 'v1/users',
+        module: UsersModule,
+      },
+      {
+        path: 'v1/market',
+        module: MarketModule,
+      },
+    ]),
     OrdersModule,
     MarketModule,
     UsersModule,
